@@ -1,4 +1,4 @@
-/* Axis & Allies battle engine (1942 Second Edition rules, simplified where noted).
+/* WW2 Battle Odds engine (unofficial; compatible with Axis & Allies 1942 Second Edition rules, simplified where noted).
    Works in the browser (window.AAEngine), in a Web Worker (self.AAEngine) and in Node (module.exports). */
 (function (root) {
   'use strict';

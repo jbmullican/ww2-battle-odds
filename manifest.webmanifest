@@ -1,7 +1,7 @@
 {
-  "name": "Axis & Allies Battle Odds",
-  "short_name": "A&A Odds",
-  "description": "Battle odds calculator and dice roller for Axis & Allies.",
+  "name": "WW2 Battle Odds",
+  "short_name": "WW2 Odds",
+  "description": "Unofficial battle odds calculator and dice roller compatible with Axis & Allies 1942 Second Edition.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
