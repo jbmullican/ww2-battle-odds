@@ -2,7 +2,7 @@
 
 A free, unofficial battle odds calculator and dice roller for World War II strategy board games, compatible with Axis & Allies 1942 Second Edition.
 
-Live app: https://jbmullican.github.io/aa-battle/
+Live app: https://jbmullican.github.io/ww2-battle-odds/
 
 ## Disclaimer
 
