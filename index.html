@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A&amp;A Odds">
+<meta name="application-name" content="A&amp;A Odds">
+<meta name="theme-color" content="#14171c">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Axis &amp; Allies battle odds calculator and dice roller.">
+<title>A&amp;A Battle Odds</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 id="title">A&amp;A Battle Odds</h1>
+  <div class="type-seg" role="tablist" aria-label="Battle type">
+    <button data-type="land" class="on">Land</button>
+    <button data-type="sea">Sea</button>
+    <button data-type="amph">Amphibious</button>
+  </div>
+</header>
+
+<main>
+  <!-- SETUP -->
+  <section id="view-setup" class="view on">
+    <div class="side-card att" id="card-att"></div>
+    <div class="side-card def" id="card-def"></div>
+    <div class="card opts">
+      <h2>Options</h2>
+      <label class="row"><span>Casualties first</span>
+        <select id="opt-order"><option value="cost">Cheapest first</option><option value="power">Weakest first</option></select></label>
+      <label class="row" id="row-keepland"><span>Keep 1 attacking land unit (to capture)</span><input type="checkbox" id="opt-keepland"></label>
+      <div class="row"><span>Attacker retreats after round</span>
+        <div class="stepper"><button data-step="retreat:-1" aria-label="Fewer rounds">−</button><output id="opt-retreat">never</output><button data-step="retreat:1" aria-label="More rounds">+</button></div></div>
+      <label class="row"><span>Simulated battles</span>
+        <select id="opt-n"><option value="2000">2,000</option><option value="10000" selected>10,000</option><option value="25000">25,000</option><option value="50000">50,000</option></select></label>
+    </div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ODDS -->
+  <section id="view-odds" class="view">
+    <div id="odds-empty" class="card muted">Set up units, then tap <b>Calculate odds</b>.</div>
+    <div id="odds-progress" class="card hidden"><div class="progress"><div id="odds-bar"></div></div><p class="muted center" id="odds-ptext">Simulating…</p></div>
+    <div id="odds-result" class="hidden"></div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- BATTLE -->
+  <section id="view-battle" class="view">
+    <div class="card battle-head">
+      <div><b id="b-round">Round 0</b> <span id="b-status" class="muted">Ready</span></div>
+      <label class="mini"><input type="checkbox" id="b-manual"> Choose casualties myself</label>
+    </div>
+    <div class="forces">
+      <div class="force att"><h3>Attacker</h3><div id="b-att"></div></div>
+      <div class="force def"><h3>Defender</h3><div id="b-def"></div></div>
+    </div>
+    <div id="b-pick" class="hidden"></div>
+    <div id="b-dice"></div>
+    <details class="card" id="b-logwrap"><summary>Battle log</summary><div id="b-log"></div></details>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- INFO -->
+  <section id="view-info" class="view">
+    <div class="card info">
+      <h2>How to use</h2>
+      <p>Pick the battle type at the top, add units for each country on each side, then tap <b>Calculate odds</b> for a 10,000-battle simulation, or <b>Battle</b> to roll it out one round at a time. Allied countries on the same side fight together; results keep a per-country breakdown.</p>
+      <p>To install: in Safari tap Share → <b>Add to Home Screen</b>. It then opens full-screen and works offline.</p>
+      <h2>Ruleset: Axis &amp; Allies 1942 Second Edition</h2>
+      <table class="units-table" id="units-table"></table>
+      <ul>
+        <li><b>Artillery</b> raises one attacking infantry to attack 2 per artillery.</li>
+        <li><b>Battleships and aircraft carriers</b> take 2 hits (1942 2nd Ed.). The first hit only damages them, at no loss in strength. They are not repaired during the battle.</li>
+        <li><b>Submarines</b> fire a surprise strike before other units, and their casualties are removed without firing back, unless the enemy has a destroyer. A sub's hits can't be assigned to aircraft.</li>
+        <li><b>Aircraft</b> can't hit submarines unless their side has a destroyer in the battle.</li>
+        <li><b>Transports</b> have 0 attack and 0 defense and are always taken last. Transports left without escorts are destroyed automatically.</li>
+        <li><b>AA guns</b> (defense only) fire once, before round 1, at up to 3 attacking aircraft each. A die roll of 1 is a hit. After that they are 0/0 units that can be taken as casualties.</li>
+        <li><b>Amphibious</b>: attacking battleships and cruisers fire one shore bombardment shot each in round 1. They are never casualties. Defenders hit by bombardment still fire back in round 1.</li>
+        <li><b>Stalemate</b>: if neither side can hit the other (for example aircraft against lone subs), the battle ends as a draw.</li>
+        <li><b>Anniversary Edition</b> is close but not identical (for example its carriers take 1 hit and attack at 1). The values here are 1942 Second Edition.</li>
+        <li><b>Retreat</b>: when set, the attacker retreats at the end of that round if the battle is still going. That result counts as a defender hold, shown separately.</li>
+      </ul>
+      <h2>Simplifications</h2>
+      <ul>
+        <li>Casualties follow a fixed priority: damage multi-hit ships first, then cheapest first (or weakest first), then transports last. When there's a tie, losses rotate between countries. An optional rule keeps the last attacking land unit so the territory can be captured. Real players sometimes choose differently, so odds can differ slightly from a human-optimal game.</li>
+        <li>No submerging or mid-battle retreat decisions except the fixed “retreat after N rounds” option. Subs never submerge in the simulation.</li>
+        <li>AA fire takes the attacker's cheapest aircraft (rules: each plane is rolled for individually, so the attacker doesn't choose). Defending fighters whose carrier sinks keep fighting and aren't checked for landing space.</li>
+        <li>No limit on how many ships can bombard, no strategic bombing, no scrambling, no kamikaze, no national objectives or tech.</li>
+        <li>In “Choose casualties myself” mode you pick only the casualties of normal combat. AA and sub surprise-strike casualties are still taken automatically.</li>
+        <li>“Attacker wins” means every defender is gone. In land battles, “Captures territory” also needs a surviving attacking land unit.</li>
+        <li>The simulation runs 10,000 battles by default, so expect about ±1% noise on the percentages.</li>
+      </ul>
+      <h2>Count from photo (experimental)</h2>
+      <p>This runs entirely on your phone. Nothing is uploaded. It finds blobs that stand out from the background, groups them by plastic color into countries, and guesses the unit type from blob size only. It is a rough helper: touching pieces, shadows, busy board art, and similar colors (UK / ANZAC / Italy) confuse it. You always review and edit the counts before they're used. Best results: pieces spread apart on a plain white sheet, shot from above in even light.</p>
+      <p class="muted small">Unofficial fan tool. Axis &amp; Allies is a trademark of its owner. <span id="ver"></span></p>
+    </div>
+    <div class="spacer"></div>
+  </section>
+</main>
+
+<div class="actionbar" id="actionbar"></div>
+
+<nav class="tabbar">
+  <button data-view="setup" class="on"><span class="ti">⚙︎</span>Setup</button>
+  <button data-view="odds"><span class="ti">%</span>Odds</button>
+  <button data-view="battle"><span class="ti">⚄</span>Battle</button>
+  <button data-view="info"><span class="ti">ℹ︎</span>Info</button>
+</nav>
+
+<!-- Photo sheet -->
+<div id="photo-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="photo-title">
+  <div class="sheet-inner">
+    <div class="sheet-head"><h2 id="photo-title">Count from photo <span class="badge">Experimental</span></h2><button class="x" id="photo-close" aria-label="Close">✕</button></div>
+    <p class="muted small">Rough guess only. It runs on your phone. Spread pieces apart on a plain light surface and shoot from above. Check every number before you use it.</p>
+    <div class="photo-btns">
+      <label class="btn primary">📷 Take photo<input type="file" accept="image/*" capture="environment" id="photo-cam" hidden></label>
+      <label class="btn">🖼 Choose photo<input type="file" accept="image/*" id="photo-pick" hidden></label>
+    </div>
+    <div id="photo-status" class="muted small"></div>
+    <canvas id="photo-canvas" class="hidden"></canvas>
+    <div id="photo-results"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/engine.js"></script>
+<script src="js/photo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
