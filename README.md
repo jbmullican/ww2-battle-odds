@@ -16,7 +16,7 @@ The same web app also ships as a native iPhone app (iOS 17+, iPhone only) throug
 
 `.github/workflows/ios-testflight.yml` runs on every push to `main` that changes the web or iOS files, and can be started by hand from **Actions > iOS TestFlight > Run workflow**. It runs the engine tests, does an unsigned compile check, then archives with automatic signing and uploads the build to App Store Connect. The version is 1.0 and the build number is the workflow run number.
 
-It needs these repository secrets (**Settings > Secrets and variables > Actions**):
+Uploads only run when the owner starts the workflow by hand on `main` and approves the protected `testflight` environment. Pushes run only the tests and an unsigned compile check, which use no secrets. The secrets live only in that environment (**Settings > Environments > testflight**):
 
 | Secret | What it is |
 | --- | --- |
@@ -25,7 +25,7 @@ It needs these repository secrets (**Settings > Secrets and variables > Actions*
 | `ASC_KEY_P8` | Full contents of the downloaded `AuthKey_XXXXXXXXXX.p8` file, including the BEGIN/END lines |
 | `APPLE_TEAM_ID` | Your 10-character Apple Developer Team ID |
 
-Without them the upload job stops at its first step with a list of the missing secrets. The app record in App Store Connect must use the bundle ID `com.jbmullican.ww2battleodds`.
+Without them the upload job stops at its first step with a list of the missing secrets. Every third-party action is pinned to a full commit SHA, and the repository only allows GitHub-owned actions plus `maxim-lobanov/setup-xcode`. The app record in App Store Connect must use the bundle ID `com.jbmullican.ww2battleodds`.
 
 ## Disclaimer
 
