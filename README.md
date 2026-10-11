@@ -4,6 +4,18 @@ A free, unofficial battle odds calculator and dice roller for World War II strat
 
 Live app: https://jbmullican.github.io/ww2-battle-odds/
 
+## How to use
+
+Pick Land, Sea, or Amphibious, add units for one or more countries on each side, then tap **Calculate odds** for win chances from thousands of simulated battles, or **Battle** to roll it out round by round. Add it to your iPhone home screen from Safari (Share > Add to Home Screen) to use it like an app, offline.
+
+**Read the full [User Guide](docs/USER_GUIDE.md)** for step-by-step help with screenshots.
+
+<p>
+  <a href="docs/USER_GUIDE.md#2-set-up-a-battle"><img src="docs/images/setup-land-multi.png" alt="Setup screen with USA and UK attacking Germany" width="240"></a>
+  &nbsp;
+  <a href="docs/USER_GUIDE.md#4-calculate-the-odds"><img src="docs/images/odds-summary.png" alt="Battle odds results" width="240"></a>
+</p>
+
 ## iOS app
 
 The same web app also ships as a native iPhone app (iOS 17+, iPhone only) through TestFlight. The iOS project lives in `ios/`; the web files stay at the repo root so GitHub Pages keeps working.
@@ -26,6 +38,10 @@ Uploads only run when the owner starts the workflow by hand on `main` and approv
 | `APPLE_TEAM_ID` | Your 10-character Apple Developer Team ID |
 
 Without them the upload job stops at its first step with a list of the missing secrets. Every third-party action is pinned to a full commit SHA, and the repository only allows GitHub-owned actions plus `maxim-lobanov/setup-xcode`. The app record in App Store Connect must use the bundle ID `com.jbmullican.ww2battleodds`.
+
+## Contributing and security
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Please report security problems privately as described in [SECURITY.md](SECURITY.md), not in public issues.
 
 ## Disclaimer
 

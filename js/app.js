@@ -2,10 +2,13 @@
 (function () {
   'use strict';
   var E = window.AAEngine, U = E.UNITS, NAT = E.NATIONS;
-  var VERSION = '1.0.1';
+  var VERSION = '1.0.2';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // Escape any text that goes into innerHTML (attribute or element content).
+  function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var esc = escapeHtml;
+  function toCount(v) { var n = Math.floor(Number(v)); return isFinite(n) ? Math.max(0, Math.min(99, n)) : 0; }
   function pct(x) { return (x * 100).toFixed(x > 0 && x < 0.001 ? 2 : 1) + '%'; }
   function natStyle(n) { var c = NAT[n] || { color: '#888', text: '#fff' }; return '--nc:' + c.color + ';--nt:' + c.text; }
 
@@ -16,9 +19,35 @@
     def: [{ nation: 'Germany', units: { inf: 3, arm: 1 } }],
     opts: { order: 'cost', keepLand: true, retreatAfter: 0, n: 10000 }
   };
+  // Rebuild state from untrusted input (localStorage or __aa.set): only known
+  // battle types, nations from E.NATION_ORDER, known unit keys, and integer counts 0-99.
+  var ORDERS = ['cost', 'power'], SIM_COUNTS = [2000, 10000, 25000, 50000];
+  function sanitizeState(raw) {
+    var d = JSON.parse(JSON.stringify(DEFAULT));
+    if (!raw || typeof raw !== 'object') return d;
+    var out = { type: Object.prototype.hasOwnProperty.call(E.ALLOWED, raw.type) ? raw.type : d.type, opts: {} };
+    ['att', 'def'].forEach(function (role) {
+      var list = Array.isArray(raw[role]) ? raw[role] : [], seen = [];
+      out[role] = [];
+      list.forEach(function (e) {
+        if (!e || typeof e !== 'object' || E.NATION_ORDER.indexOf(e.nation) < 0 || seen.indexOf(e.nation) >= 0) return;
+        seen.push(e.nation);
+        var units = {}, src = e.units && typeof e.units === 'object' ? e.units : {};
+        Object.keys(U).forEach(function (t) { if (Object.prototype.hasOwnProperty.call(src, t)) { var c = toCount(src[t]); if (c) units[t] = c; } });
+        out[role].push({ nation: e.nation, units: units });
+      });
+      if (!out[role].length) out[role] = d[role];
+    });
+    var o = raw.opts && typeof raw.opts === 'object' ? raw.opts : {};
+    out.opts.order = ORDERS.indexOf(o.order) >= 0 ? o.order : d.opts.order;
+    out.opts.keepLand = o.keepLand === undefined ? d.opts.keepLand : !!o.keepLand;
+    var r = Math.floor(Number(o.retreatAfter)); out.opts.retreatAfter = isFinite(r) ? Math.max(0, Math.min(20, r)) : 0;
+    out.opts.n = SIM_COUNTS.indexOf(+o.n) >= 0 ? +o.n : d.opts.n;
+    return out;
+  }
   var S;
-  try { S = JSON.parse(localStorage.getItem('aa-state')) || null; } catch (e) { S = null; }
-  if (!S || !S.att || !S.def) S = JSON.parse(JSON.stringify(DEFAULT));
+  try { S = JSON.parse(localStorage.getItem('aa-state')); } catch (e) { S = null; }
+  S = sanitizeState(S);
   function save() { try { localStorage.setItem('aa-state', JSON.stringify(S)); } catch (e) {} }
   var view = 'setup';
 
@@ -37,26 +66,26 @@
     if (t === 'ss') extra = ' · first strike';
     return '<div class="urow' + (count ? '' : ' zero') + '"><div class="un"><b>' + u.name + '</b><small>' + role2 + val + extra + ' · ' + u.cost + ' IPC</small></div>' +
       '<div class="stepper"><button data-act="dec" data-role="' + role + '" data-idx="' + idx + '" data-unit="' + t + '" aria-label="Remove ' + u.name + '">−</button>' +
-      '<input inputmode="numeric" pattern="[0-9]*" value="' + count + '" data-act="set" data-role="' + role + '" data-idx="' + idx + '" data-unit="' + t + '" aria-label="' + u.name + ' count">' +
+      '<input inputmode="numeric" pattern="[0-9]*" value="' + escapeHtml(count) + '" data-act="set" data-role="' + role + '" data-idx="' + idx + '" data-unit="' + t + '" aria-label="' + u.name + ' count">' +
       '<button data-act="inc" data-role="' + role + '" data-idx="' + idx + '" data-unit="' + t + '" aria-label="Add ' + u.name + '">+</button></div></div>';
   }
   function sideIpc(role) {
     var tot = 0, n = 0;
-    S[role].forEach(function (e) { E.ALLOWED[S.type][role].forEach(function (t) { var c = +e.units[t] || 0; tot += c * U[t].cost; n += c; }); });
+    S[role].forEach(function (e) { E.ALLOWED[S.type][role].forEach(function (t) { var c = toCount(e.units[t]); tot += c * U[t].cost; n += c; }); });
     return { ipc: tot, n: n };
   }
   function renderSide(role) {
     var card = $('#card-' + role), allowed = E.ALLOWED[S.type][role];
     var tot = sideIpc(role);
-    var h = '<div class="side-head"><h2>' + (role === 'att' ? 'Attacker' : 'Defender') + '</h2><span class="side-tot">' + tot.n + ' units · ' + tot.ipc + ' IPC</span></div>';
+    var h = '<div class="side-head"><h2>' + (role === 'att' ? 'Attacker' : 'Defender') + '</h2><span class="side-tot">' + escapeHtml(tot.n) + ' units · ' + escapeHtml(tot.ipc) + ' IPC</span></div>';
     S[role].forEach(function (e, idx) {
       var used = S[role].map(function (x) { return x.nation; });
-      var ipc = 0; allowed.forEach(function (t) { ipc += (+e.units[t] || 0) * U[t].cost; });
+      var ipc = 0; allowed.forEach(function (t) { ipc += toCount(e.units[t]) * U[t].cost; });
       h += '<div class="nation" style="' + natStyle(e.nation) + '"><div class="nation-head"><select data-act="nation" data-role="' + role + '" data-idx="' + idx + '" aria-label="Country">' +
-        E.NATION_ORDER.map(function (n) { return '<option' + (n === e.nation ? ' selected' : '') + (used.indexOf(n) >= 0 && n !== e.nation ? ' disabled' : '') + '>' + n + '</option>'; }).join('') +
-        '</select><span class="ipc">' + ipc + ' IPC</span>' +
-        (S[role].length > 1 ? '<button class="icon-btn" data-act="rmnation" data-role="' + role + '" data-idx="' + idx + '" aria-label="Remove ' + e.nation + '">✕</button>' : '') + '</div>';
-      allowed.forEach(function (t) { h += unitRow(role, idx, t, +e.units[t] || 0); });
+        E.NATION_ORDER.map(function (n) { return '<option' + (n === e.nation ? ' selected' : '') + (used.indexOf(n) >= 0 && n !== e.nation ? ' disabled' : '') + '>' + escapeHtml(n) + '</option>'; }).join('') +
+        '</select><span class="ipc">' + escapeHtml(ipc) + ' IPC</span>' +
+        (S[role].length > 1 ? '<button class="icon-btn" data-act="rmnation" data-role="' + role + '" data-idx="' + idx + '" aria-label="Remove ' + escapeHtml(e.nation) + '">✕</button>' : '') + '</div>';
+      allowed.forEach(function (t) { h += unitRow(role, idx, t, toCount(e.units[t])); });
       h += '</div>';
     });
     h += '<div class="side-actions">' + (S[role].length < E.NATION_ORDER.length ? '<button class="btn full" data-act="addnation" data-role="' + role + '">＋ Add country</button>' : '') +
@@ -98,7 +127,7 @@
   });
   document.addEventListener('change', function (ev) {
     var el = ev.target, act = el.dataset && el.dataset.act;
-    if (act === 'nation') { S[el.dataset.role][+el.dataset.idx].nation = el.value; changed(); renderSide(el.dataset.role); }
+    if (act === 'nation') { if (E.NATION_ORDER.indexOf(el.value) < 0) return; S[el.dataset.role][+el.dataset.idx].nation = el.value; changed(); renderSide(el.dataset.role); }
     if (act === 'set') {
       var v = Math.max(0, Math.min(99, parseInt(el.value, 10) || 0));
       S[el.dataset.role][+el.dataset.idx].units[el.dataset.unit] = v; changed(); renderSide(el.dataset.role);
@@ -309,7 +338,7 @@
       kindsOf(side).forEach(function (k) {
         var c = sel[k.key] || 0;
         h += '<div class="urow"><div class="un"><b><span class="ntag" style="' + natStyle(k.n) + '"><i></i>' + esc(k.n) + ' ' + U[k.t].name + '</span></b><small>' + (k.absorb ? 'take damage (stays in battle)' : (U[k.t].hp > 1 ? 'sink' : 'destroy')) + ' · max ' + k.slots.length + '</small></div>' +
-          '<div class="stepper"><button data-pk="' + S2 + '|' + k.key + '|-1">−</button><input readonly value="' + c + '"><button data-pk="' + S2 + '|' + k.key + '|1">+</button></div></div>';
+          '<div class="stepper"><button data-pk="' + escapeHtml(S2 + '|' + k.key + '|-1') + '">−</button><input readonly value="' + escapeHtml(c) + '"><button data-pk="' + escapeHtml(S2 + '|' + k.key + '|1') + '">+</button></div></div>';
       });
       h += '<div class="perr">' + (err ? esc(err) : '') + '</div></div>';
     });
@@ -440,9 +469,9 @@
     photoClusters = Object.keys(groups).map(function (k) { var g = groups[k]; g.rgb = g.rgb.map(function (v) { return Math.round(v / g.blobs); }); return g; })
       .sort(function (a, b) { return b.pieces - a.pieces; });
     var total = photoClusters.reduce(function (s, g) { return s + g.pieces; }, 0);
-    $('#photo-status').innerHTML = total ? 'Found about <b>' + total + '</b> piece' + (total === 1 ? '' : 's') + ' in ' + photoClusters.length + ' color group' + (photoClusters.length === 1 ? '' : 's') + '. These are guesses: fix the country and counts below.' :
+    $('#photo-status').innerHTML = total ? 'Found about <b>' + escapeHtml(total) + '</b> piece' + (total === 1 ? '' : 's') + ' in ' + escapeHtml(photoClusters.length) + ' color group' + (photoClusters.length === 1 ? '' : 's') + '. These are guesses: fix the country and counts below.' :
       'No pieces found. Try a plain, light background with pieces spread apart.';
-    if (res.busy) $('#photo-status').innerHTML = '<b style="color:#ffb3a6">The background looks too busy (' + total + ' blobs), so these numbers are almost certainly wrong.</b> Put the pieces on a plain sheet of paper and try again.';
+    if (res.busy) $('#photo-status').innerHTML = '<b style="color:#ffb3a6">The background looks too busy (' + escapeHtml(total) + ' blobs), so these numbers are almost certainly wrong.</b> Put the pieces on a plain sheet of paper and try again.';
     renderClusters();
   }
   function renderClusters() {
@@ -453,12 +482,12 @@
       '<select id="ph-mode"><option value="replace">replacing those countries’ counts</option><option value="add">adding to current counts</option></select></div>';
     photoClusters.forEach(function (g, gi) {
       var conf = g.confs.high >= g.confs.medium + g.confs.low ? 'color match: good' : (g.confs.low > g.blobs / 2 ? 'color match: poor, check country' : 'color match: fair');
-      h += '<div class="cluster" style="' + natStyle(g.nation) + '"><div class="cluster-head"><span class="swatch" style="background:rgb(' + g.rgb.join(',') + ')"></span>' +
-        '<select data-ph="nation" data-gi="' + gi + '"><option value="">Ignore this group</option>' + E.NATION_ORDER.map(function (n) { return '<option' + (n === g.nation ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
-        '<div class="conf">' + g.pieces + ' piece' + (g.pieces === 1 ? '' : 's') + ' detected · ' + conf + ' · unit types guessed from size only</div>';
+      h += '<div class="cluster" style="' + natStyle(g.nation) + '"><div class="cluster-head"><span class="swatch" style="background:rgb(' + g.rgb.map(function (v) { return Math.max(0, Math.min(255, Math.round(+v) || 0)); }).join(',') + ')"></span>' +
+        '<select data-ph="nation" data-gi="' + gi + '"><option value="">Ignore this group</option>' + E.NATION_ORDER.map(function (n) { return '<option' + (n === g.nation ? ' selected' : '') + '>' + escapeHtml(n) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="conf">' + escapeHtml(g.pieces) + ' piece' + (g.pieces === 1 ? '' : 's') + ' detected · ' + conf + ' · unit types guessed from size only</div>';
       allowed.forEach(function (t) {
         var c = g.units[t] || 0;
-        h += '<div class="urow' + (c ? '' : ' zero') + '"><div class="un"><b>' + U[t].name + '</b></div><div class="stepper"><button data-ph="dec" data-gi="' + gi + '" data-unit="' + t + '">−</button><input readonly value="' + c + '"><button data-ph="inc" data-gi="' + gi + '" data-unit="' + t + '">+</button></div></div>';
+        h += '<div class="urow' + (c ? '' : ' zero') + '"><div class="un"><b>' + U[t].name + '</b></div><div class="stepper"><button data-ph="dec" data-gi="' + gi + '" data-unit="' + t + '">−</button><input readonly value="' + escapeHtml(c) + '"><button data-ph="inc" data-gi="' + gi + '" data-unit="' + t + '">+</button></div></div>';
       });
       h += '</div>';
     });
@@ -467,7 +496,7 @@
     $('#ph-role').onchange = function () { photoRole = this.value; renderClusters(); };
     $$('[data-ph]', el).forEach(function (x) {
       var gi = +x.dataset.gi, g = photoClusters[gi];
-      if (x.dataset.ph === 'nation') x.onchange = function () { g.nation = this.value || null; renderClusters(); };
+      if (x.dataset.ph === 'nation') x.onchange = function () { g.nation = E.NATION_ORDER.indexOf(this.value) >= 0 ? this.value : null; renderClusters(); };
       else x.onclick = function () { var t = x.dataset.unit; g.units[t] = Math.max(0, (g.units[t] || 0) + (x.dataset.ph === 'inc' ? 1 : -1)); renderClusters(); };
     });
     $('#ph-apply').onclick = applyPhoto;
@@ -504,5 +533,5 @@
   if (!window.WW2_NATIVE && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
   }
-  window.__aa = { show: show, S: function () { return S; }, set: function (s) { S = s; changed(); renderSetup(); }, calc: calc, roll: rollOne, auto: autoResolve, reset: resetBattle };
+  window.__aa = { show: show, S: function () { return S; }, set: function (s) { S = sanitizeState(s); changed(); renderSetup(); }, calc: calc, roll: rollOne, auto: autoResolve, reset: resetBattle };
 })();
