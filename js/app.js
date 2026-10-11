@@ -1,3 +1,4 @@
+/* WW2 Battle Odds. Copyright (C) 2026 jbmullican. Licensed under GPL-3.0-or-later; see LICENSE. */
 (function () {
   'use strict';
   var E = window.AAEngine, U = E.UNITS, NAT = E.NATIONS;

@@ -30,3 +30,13 @@ Without them the upload job stops at its first step with a list of the missing s
 ## Disclaimer
 
 WW2 Battle Odds is an unofficial, free fan tool. It is not sold or monetized in any way. It is not affiliated with, sponsored by, or endorsed by Hasbro, Avalon Hill, or Wizards of the Coast. Axis & Allies is a trademark of Hasbro, Inc. and is mentioned only to describe compatibility. This project contains no game art, logos, or rulebook text.
+
+## License
+
+Copyright (C) 2026 jbmullican
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE) for the full text.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+The license covers this project's code only. Axis & Allies is a trademark of Hasbro, Inc.; no rights to any trademark are granted.
