@@ -126,7 +126,11 @@ jobs:
           fi
           echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Archive (automatic signing)
+      # The archive is built unsigned. Signing happens in the export step, which uses the
+      # App Store Connect API key to get an Apple Distribution certificate and an App Store
+      # profile from Apple (cloud signing). This avoids needing a registered test device,
+      # which development-signed archives require.
+      - name: Archive (unsigned)
         run: |
           set -o pipefail
           xcodebuild -version
@@ -136,12 +140,10 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/WW2BattleOdds.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             MARKETING_VERSION=1.0 \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 

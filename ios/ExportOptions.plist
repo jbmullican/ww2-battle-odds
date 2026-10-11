@@ -17,6 +17,6 @@
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 	<key>testFlightInternalTestingOnly</key>
-	<false/>
+	<true/>
 </dict>
 </plist>
