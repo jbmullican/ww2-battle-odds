@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   var E = window.AAEngine, U = E.UNITS, NAT = E.NATIONS;
-  var VERSION = '1.0.0';
+  var VERSION = '1.0.1';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -149,7 +149,7 @@
   function toast(msg) { var t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.add('hidden'); }, 2600); }
 
   // ---------- odds ----------
-  var worker = null, lastResult = null, jobId = 0;
+  var worker = null, noWorker = false, lastResult = null, jobId = 0;
   function calc() {
     var a = sideIpc('att'), d = sideIpc('def');
     var bomb = S.type === 'amph' && S.att.some(function (e) { return (+e.units.bb || 0) + (+e.units.ca || 0) > 0; });
@@ -161,9 +161,20 @@
     var done = function (res) {
       $('#odds-progress').classList.add('hidden'); lastResult = res; renderOdds(res, msg); renderActions();
     };
-    if (window.Worker && (location.protocol !== 'file:' || window.AA_INLINE_WORKER)) {
+    var mainThread = function () {
+      setTimeout(function () { if (msg.id === jobId) done(E.simulate(msg.att, msg.def, msg.opts, msg.n, msg.seed)); }, 30);
+    };
+    if (window.Worker && !noWorker && (location.protocol !== 'file:' || window.AA_INLINE_WORKER)) {
       if (worker) worker.terminate();
-      worker = window.AA_INLINE_WORKER ? new Worker(URL.createObjectURL(new Blob([window.AA_INLINE_WORKER], { type: 'text/javascript' }))) : new Worker('js/worker.js');
+      try {
+        worker = window.AA_INLINE_WORKER ? new Worker(URL.createObjectURL(new Blob([window.AA_INLINE_WORKER], { type: 'text/javascript' }))) : new Worker('js/worker.js');
+      } catch (err) { worker = null; noWorker = true; mainThread(); return; }
+      // If the worker script can't load (e.g. a restricted WebView), fall back to the main thread.
+      worker.onerror = function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        if (worker) worker.terminate();
+        worker = null; noWorker = true; mainThread();
+      };
       worker.onmessage = function (e) {
         if (e.data.id !== jobId) return;
         if (e.data.progress != null) $('#odds-bar').style.width = (e.data.progress * 100) + '%';
@@ -172,7 +183,7 @@
       };
       worker.postMessage(msg);
     } else {
-      setTimeout(function () { done(E.simulate(msg.att, msg.def, msg.opts, msg.n, msg.seed)); }, 30);
+      mainThread();
     }
     void bomb;
   }
@@ -488,8 +499,9 @@
   })();
 
   renderSetup(); renderActions();
-  if ('serviceWorker' in navigator && location.protocol === 'https:' || location.hostname === 'localhost') {
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+  // No service worker inside the native iOS app (it serves bundled files over app://).
+  if (!window.WW2_NATIVE && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
   }
   window.__aa = { show: show, S: function () { return S; }, set: function (s) { S = s; changed(); renderSetup(); }, calc: calc, roll: rollOne, auto: autoResolve, reset: resetBattle };
 })();
