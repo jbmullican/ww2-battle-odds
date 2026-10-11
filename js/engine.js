@@ -1,3 +1,4 @@
+/* WW2 Battle Odds. Copyright (C) 2026 jbmullican. Licensed under GPL-3.0-or-later; see LICENSE. */
 /* WW2 Battle Odds engine (unofficial; compatible with Axis & Allies 1942 Second Edition rules, simplified where noted).
    Works in the browser (window.AAEngine), in a Web Worker (self.AAEngine) and in Node (module.exports). */
 (function (root) {

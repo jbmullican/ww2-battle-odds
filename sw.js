@@ -1,3 +1,4 @@
+/* WW2 Battle Odds. Copyright (C) 2026 jbmullican. Licensed under GPL-3.0-or-later; see LICENSE. */
 var CACHE = 'ww2-odds-v1.1.1';
 var ASSETS = ['./', 'index.html', 'css/style.css', 'js/engine.js', 'js/app.js', 'js/photo.js', 'js/worker.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];

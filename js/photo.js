@@ -1,3 +1,4 @@
+/* WW2 Battle Odds. Copyright (C) 2026 jbmullican. Licensed under GPL-3.0-or-later; see LICENSE. */
 /* Experimental on-device piece counter. Segments pieces from a plain background, clusters them by
    plastic colour into countries and uses blob size only as a weak hint for unit type. */
 (function (root) {
